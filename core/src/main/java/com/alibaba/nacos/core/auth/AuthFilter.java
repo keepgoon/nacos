@@ -58,7 +58,7 @@ public class AuthFilter implements Filter {
     
     @Autowired
     private ControllerMethodsCache methodsCache;
-    
+    // ConcurrentHashMap 并发度远高于hashMap
     private Map<Class<? extends ResourceParser>, ResourceParser> parserInstance = new ConcurrentHashMap<>();
     
     @Override

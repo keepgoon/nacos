@@ -60,11 +60,16 @@ import static com.alibaba.nacos.sys.env.Constants.REQUEST_PATH_SEPARATOR;
 public class ControllerMethodsCache {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ControllerMethodsCache.class);
-    
+    // 请求与方法的对照表
     private ConcurrentMap<RequestMappingInfo, Method> methods = new ConcurrentHashMap<>();
-    
+    // 请求地址与请求方法的匹配集合
     private final ConcurrentMap<String, List<RequestMappingInfo>> urlLookup = new ConcurrentHashMap<>();
-    
+    /**
+     * 获取方法，因为spring mvc接口是和方法绑定的，所以返回的是方法
+     *
+     * @param request:
+     * @return java.lang.reflect.Method
+     **/
     public Method getMethod(HttpServletRequest request) {
         String path = getPath(request);
         String httpMethod = request.getMethod();
@@ -81,17 +86,26 @@ public class ControllerMethodsCache {
         if (matchedInfo.size() > 1) {
             RequestMappingInfoComparator comparator = new RequestMappingInfoComparator();
             matchedInfo.sort(comparator);
+            // 最好匹配
             bestMatch = matchedInfo.get(0);
+            // 次好匹配
             RequestMappingInfo secondBestMatch = matchedInfo.get(1);
+            // 比较出最好的匹配，这里比较的是参数个数
             if (comparator.compare(bestMatch, secondBestMatch) == 0) {
                 throw new IllegalStateException(
                         "Ambiguous methods mapped for '" + request.getRequestURI() + "': {" + bestMatch + ", "
                                 + secondBestMatch + "}");
             }
         }
+        // 获取方法
         return methods.get(bestMatch);
     }
-    
+    /**
+     *获取请求路径
+     *
+     * @param request:
+     * @return java.lang.String
+     **/
     private String getPath(HttpServletRequest request) {
         try {
             return new URI(request.getRequestURI()).getPath();
@@ -100,7 +114,13 @@ public class ControllerMethodsCache {
             throw new NacosRuntimeException(NacosException.NOT_FOUND, "Invalid URI");
         }
     }
-    
+    /**
+     * 匹配请求方法
+     *
+     * @param requestMappingInfos: 
+     * @param request:
+     * @return java.util.List<com.alibaba.nacos.core.auth.RequestMappingInfo>
+     **/
     private List<RequestMappingInfo> findMatchedInfo(List<RequestMappingInfo> requestMappingInfos,
             HttpServletRequest request) {
         List<RequestMappingInfo> matchedInfo = new ArrayList<>();
@@ -115,7 +135,7 @@ public class ControllerMethodsCache {
     }
     
     /**
-     * find target method from this package.
+     * init初始化反射方法
      *
      * @param packageName package name
      */
@@ -165,7 +185,13 @@ public class ControllerMethodsCache {
             }
         }
     }
-    
+    /**
+     * 解析控制器的子注解
+     *
+     * @param method: 
+     * @param classPath:
+     * @return void
+     **/
     private void parseSubAnnotations(Method method, String classPath) {
         
         final GetMapping getMapping = method.getAnnotation(GetMapping.class);
@@ -195,7 +221,12 @@ public class ControllerMethodsCache {
         }
         
     }
-    
+    /**
+     * 添加方法映射
+     *
+     * @author lizhenming
+     * @date 2021/5/13
+     */
     private void put(RequestMethod requestMethod, String classPath, String[] requestPaths, String[] requestParams,
             Method method) {
         if (ArrayUtils.isEmpty(requestPaths)) {
@@ -204,11 +235,19 @@ public class ControllerMethodsCache {
             return;
         }
         for (String requestPath : requestPaths) {
+            // 地址作为Key,地址格式 ： POST-->com.alibaba.nacos.core.controller/nacos/v1/install
             String urlKey = requestMethod.name() + REQUEST_PATH_SEPARATOR + classPath + requestPath;
             addUrlAndMethodRelation(urlKey, requestParams, method);
         }
     }
-    
+    /**
+     * 
+     *
+     * @param urlKey: 地址
+     * @param requestParam: 请求参数
+     * @param method: 反射得到的方法
+     * @return void
+     **/
     private void addUrlAndMethodRelation(String urlKey, String[] requestParam, Method method) {
         RequestMappingInfo requestMappingInfo = new RequestMappingInfo();
         requestMappingInfo.setPathRequestCondition(new PathRequestCondition(urlKey));
